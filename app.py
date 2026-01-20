@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from services.order_service import OrderService
-
+import services.order_service
+print("ORDER_SERVICE LOADED FROM:", services.order_service.__file__)
 app = Flask(__name__)
 
 order_service = OrderService()
@@ -36,4 +37,4 @@ def create_order():
 """
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False)
