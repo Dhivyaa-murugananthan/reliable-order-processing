@@ -12,22 +12,24 @@ class OrderService:
         self.payment_repo = PaymentRepository()
 
     def place_order(self, order_id, user_id, amount):
-        conn = get_connection()
         print("STEP 0: DB connection acquired")
+        conn = get_connection()
 
         try:
+            # STEP 1: idempotency check
             print("STEP 1: idempotency check")
             existing = self.order_repo.find_by_order_id(conn, order_id)
             if existing:
-                print("STEP 1A: existing order found")
                 return {
                     "order_id": existing["order_id"],
                     "status": existing["status"]
                 }
 
+            # STEP 2: domain validation
             print("STEP 2: domain validation")
             order = Order(order_id, user_id, amount)
 
+            # STEP 3: insert order
             print("STEP 3: inserting order")
             self.order_repo.create(
                 conn,
@@ -37,19 +39,19 @@ class OrderService:
                 order.status
             )
 
-            print("🔥 SIMULATING CRASH AFTER ORDER INSERT 🔥")
-            raise RuntimeError("SIMULATED_CRASH_AFTER_ORDER_INSERT")
+            # STEP 4: insert payment
+            print("STEP 4: inserting payment")
+            self.payment_repo.create(
+                conn,
+                order.order_id,
+                "PAID"
+            )
 
-            print("STEP 4: inserting payment")  # never reached
-            self.payment_repo.create(conn, order.order_id, "PAID")
+            # 💥 FAILURE SIMULATION POINT (AFTER PAYMENT)
+            print("🔥 SIMULATING CRASH AFTER PAYMENT INSERT 🔥")
+            raise RuntimeError("SIMULATED_CRASH_AFTER_PAYMENT_INSERT")
 
-            conn.commit()
-            print("COMMIT SUCCESS")
-
-            return {
-                "order_id": order.order_id,
-                "status": order.status
-            }
+            # conn.commit()  ❌ NEVER REACHED
 
         except Exception as e:
             print("ROLLBACK TRIGGERED DUE TO:", e)
