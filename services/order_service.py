@@ -11,11 +11,14 @@ class OrderService:
         self.order_repo = OrderRepository()
         self.payment_repo = PaymentRepository()
 
+# services/order_service.py
+
     def place_order(self, order_id, user_id, amount):
-        print("STEP 0: DB connection acquired")
         conn = get_connection()
 
         try:
+            print("STEP 0: DB connection acquired")
+
             # STEP 1: idempotency check
             print("STEP 1: idempotency check")
             existing = self.order_repo.find_by_order_id(conn, order_id)
@@ -47,15 +50,22 @@ class OrderService:
                 "PAID"
             )
 
-            # 💥 FAILURE SIMULATION POINT (AFTER PAYMENT)
-            print("🔥 SIMULATING CRASH AFTER PAYMENT INSERT 🔥")
-            raise RuntimeError("SIMULATED_CRASH_AFTER_PAYMENT_INSERT")
+            # STEP 5: COMMIT
+            print("STEP 5: committing transaction")
+            conn.commit()
 
-            # conn.commit()  ❌ NEVER REACHED
+            # 🚨 STEP 6: crash AFTER commit
+            print("🔥 SIMULATING CRASH AFTER COMMIT 🔥")
+            raise RuntimeError("SIMULATED_POST_COMMIT_CRASH")
+
+            # unreachable
+            return {
+                "order_id": order.order_id,
+                "status": order.status
+            }
 
         except Exception as e:
-            print("ROLLBACK TRIGGERED DUE TO:", e)
-            conn.rollback()
+            print("ERROR OCCURRED:", e)
             raise
 
         finally:
